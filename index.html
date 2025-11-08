@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="УПИИР - приложение для видеозвонков и чата">
+    <meta name="theme-color" content="#6366f1">
+    <title>УПИИР - Видеозвонки и чат</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <script>
+        // Регистрация Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch((registrationError) => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
+</head>
+<body>
+    <!-- Экран авторизации/регистрации -->
+    <div id="authScreen" class="auth-screen">
+        <div class="auth-container">
+            <div class="auth-tabs">
+                <button class="tab-btn active" data-tab="login">Вход</button>
+                <button class="tab-btn" data-tab="register">Регистрация</button>
+            </div>
+
+            <!-- Форма входа -->
+            <div id="loginForm" class="auth-form active">
+                <h2>Вход в систему</h2>
+                <form id="loginFormElement">
+                    <div class="form-group">
+                        <label for="loginEmail">Email</label>
+                        <input type="email" id="loginEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Пароль</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Войти</button>
+                </form>
+            </div>
+
+            <!-- Форма регистрации -->
+            <div id="registerForm" class="auth-form">
+                <h2>Регистрация</h2>
+                <form id="registerFormElement">
+                    <div class="form-group">
+                        <label for="registerName">Имя</label>
+                        <input type="text" id="registerName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerEmail">Email</label>
+                        <input type="email" id="registerEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerPassword">Пароль</label>
+                        <input type="password" id="registerPassword" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label for="registerPasswordConfirm">Подтвердите пароль</label>
+                        <input type="password" id="registerPasswordConfirm" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Основное приложение -->
+    <div id="appScreen" class="app-screen hidden">
+        <header class="app-header">
+            <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+            <div class="header-left">
+                <h1 class="app-logo">✨ УПИИР</h1>
+            </div>
+            <div class="header-center">
+                <div class="search-box">
+                    <input type="text" id="searchUsers" placeholder="Поиск пользователей...">
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <span id="currentUserName"></span>
+                    <button id="profileBtn" class="btn btn-icon" title="Профиль">👤</button>
+                    <button id="adminPanelBtn" class="btn btn-icon" title="Админ панель" style="display: none;">⚙️</button>
+                    <button id="logoutBtn" class="btn btn-secondary">Выйти</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="app-container">
+            <!-- Боковая панель с контактами -->
+            <aside class="contacts-panel">
+                <div class="contacts-header">
+                    <h2>Чаты</h2>
+                    <button id="createGroupBtn" class="btn btn-icon-small" title="Создать группу">➕</button>
+                </div>
+                <div class="contacts-tabs">
+                    <button class="contacts-tab active" data-tab="all">Все</button>
+                    <button class="contacts-tab" data-tab="contacts">Контакты</button>
+                    <button class="contacts-tab" data-tab="groups">Группы</button>
+                </div>
+                <div class="contacts-list" id="contactsList">
+                    <!-- Контакты будут добавлены динамически -->
+                </div>
+            </aside>
+
+            <!-- Основная область чата -->
+            <main class="chat-area">
+                <div id="noChatSelected" class="no-chat-selected">
+                    <div class="welcome-message">
+                        <h2>Выберите контакт для начала общения</h2>
+                        <p>Начните чат или видеозвонок с любым пользователем</p>
+                    </div>
+                </div>
+
+                <!-- Область активного чата -->
+                <div id="activeChat" class="active-chat hidden">
+                    <div class="chat-header">
+                        <div class="chat-user-info">
+                            <div class="user-avatar" id="chatUserAvatar"></div>
+                            <div>
+                                <h3 id="chatUserName"></h3>
+                                <span class="user-status" id="chatUserStatus">в сети</span>
+                                <span class="group-members-count" id="groupMembersCount" style="display: none;"></span>
+                            </div>
+                        </div>
+                        <div class="chat-actions">
+                            <button id="groupInfoBtn" class="btn btn-icon" title="Информация о группе" style="display: none;">
+                                ℹ️
+                            </button>
+                            <button id="videoCallBtn" class="btn btn-icon" title="Видеозвонок">
+                                📹
+                            </button>
+                            <button id="audioCallBtn" class="btn btn-icon" title="Аудиозвонок">
+                                📞
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="messages-container" id="messagesContainer">
+                        <!-- Сообщения будут добавлены динамически -->
+                    </div>
+
+                    <div class="message-input-area">
+                        <input type="text" id="messageInput" placeholder="Введите сообщение...">
+                        <button id="sendMessageBtn" class="btn btn-primary">Отправить</button>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Модальное окно профиля -->
+    <div id="profileModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Редактирование профиля</h2>
+                <button class="modal-close" id="closeProfileModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Аватар</label>
+                    <div class="avatar-edit-container">
+                        <div class="user-avatar-large" id="profileAvatarPreview"></div>
+                        <input type="text" id="profileAvatarInput" placeholder="Введите символ для аватара" maxlength="1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="profileName">Имя</label>
+                    <input type="text" id="profileName" required>
+                </div>
+                <div class="form-group">
+                    <label for="profileEmail">Email</label>
+                    <input type="email" id="profileEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="profileCurrentPassword">Текущий пароль (для смены)</label>
+                    <input type="password" id="profileCurrentPassword" placeholder="Оставьте пустым, если не меняете">
+                </div>
+                <div class="form-group">
+                    <label for="profileNewPassword">Новый пароль</label>
+                    <input type="password" id="profileNewPassword" placeholder="Оставьте пустым, если не меняете" minlength="6">
+                </div>
+                <div class="form-group">
+                    <label for="profileConfirmPassword">Подтвердите новый пароль</label>
+                    <input type="password" id="profileConfirmPassword" placeholder="Оставьте пустым, если не меняете">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelProfile" class="btn btn-secondary">Отмена</button>
+                <button id="saveProfile" class="btn btn-primary">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно админ панели -->
+    <div id="adminModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Админ панель</h2>
+                <button class="modal-close" id="closeAdminModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Пользователи</label>
+                    <div class="admin-users-list" id="adminUsersList">
+                        <!-- Список пользователей -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно совещания -->
+    <div id="meetingModal" class="meeting-modal hidden">
+        <div class="meeting-content">
+            <h1 class="meeting-text">СОВЕЩАНИЯ</h1>
+            <button id="closeMeetingBtn" class="btn btn-danger">Закрыть</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно создания группы -->
+    <div id="createGroupModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Создать группу</h2>
+                <button class="modal-close" id="closeCreateGroupModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="groupName">Название группы</label>
+                    <input type="text" id="groupName" placeholder="Введите название группы" required>
+                </div>
+                <div class="form-group">
+                    <label>Выберите участников</label>
+                    <div class="participants-list" id="participantsList">
+                        <!-- Участники будут добавлены динамически -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelCreateGroup" class="btn btn-secondary">Отмена</button>
+                <button id="createGroup" class="btn btn-primary">Создать группу</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно информации о группе -->
+    <div id="groupInfoModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="groupInfoTitle">Информация о группе</h2>
+                <button class="modal-close" id="closeGroupInfoModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="group-info-section">
+                    <h3>Участники</h3>
+                    <div class="group-members-list" id="groupMembersList">
+                        <!-- Участники группы -->
+                    </div>
+                </div>
+                <div class="group-info-section">
+                    <button id="addMemberBtn" class="btn btn-primary">Добавить участника</button>
+                    <button id="leaveGroupBtn" class="btn btn-danger">Покинуть группу</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно видеозвонка -->
+    <div id="callModal" class="call-modal hidden">
+        <div class="call-container">
+            <div class="call-header">
+                <h3 id="callUserName">Звонок...</h3>
+                <button id="endCallBtn" class="btn btn-danger">Завершить</button>
+            </div>
+            <div class="video-container">
+                <video id="remoteVideo" autoplay playsinline style="display: none;"></video>
+                <div id="remoteVideosContainer" class="remote-videos-container">
+                    <!-- Видео участников будут добавлены динамически -->
+                </div>
+                <div class="call-animation" id="callAnimation">
+                    <div class="call-animation-content">
+                        <div class="call-avatar-large" id="callAvatarLarge"></div>
+                        <div class="call-ripple"></div>
+                        <div class="call-ripple"></div>
+                        <div class="call-ripple"></div>
+                        <h3 class="call-animation-name" id="callAnimationName">Звонок...</h3>
+                        <p class="call-animation-status" id="callAnimationStatus">Подключение...</p>
+                    </div>
+                </div>
+                <video id="localVideo" autoplay muted playsinline></video>
+            </div>
+            <div class="call-controls">
+                <button id="toggleVideoBtn" class="btn btn-icon-large">📹</button>
+                <button id="toggleAudioBtn" class="btn btn-icon-large">🎤</button>
+                <button id="endCallBtnBottom" class="btn btn-danger-large">📞</button>
+            </div>
+            <div class="call-status" id="callStatus">Подключение...</div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
